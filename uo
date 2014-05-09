@@ -1,0 +1,191 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+import os
+import sys
+from Tkinter import *
+from Bio import AlignIO
+import tkFileDialog
+from ete2 import Tree, TreeStyle
+
+class UOApp:
+
+    def __init__(self,parent):
+        self.myParent = parent
+        parent.title='Usertree Option'
+        # parent.geometry("400x400+200+100")
+        self.menuBar = Menu(parent)
+        filemenu = Menu(self.menuBar, tearoff=0)
+        filemenu.add_command(label="Load PHYLIP alignment",command=self.LoadPHYLIP)
+        filemenu.add_command(label="Load FASTA alignment",command=self.LoadFASTA)
+        filemenu.add_command(label="Load CLUSTAL alignment",command=self.LoadCLUSTAL)
+        filemenu.add_command(label="Load NEXUS alignment",command=self.LoadNEXUS)
+        filemenu.add_separator()
+        filemenu.add_command(label="Exit", command=self.myParent.quit)
+        self.menuBar.add_cascade(label="File", menu=filemenu)
+        treemenu = Menu(self.menuBar,tearoff=0)
+        treemenu.add_command(label="Write Newick treefile",command=self.writeNewickTree)        
+        self.menuBar.add_cascade(label="Tree",menu=treemenu)
+        self.Scroll1=Scrollbar(parent,bg="blue")
+        #self.Scroll1.pack(side=RIGHT,fill=Y)
+        self.OTUlist = Listbox(parent,height=12,width=20,selectmode=MULTIPLE,yscrollcommand=self.Scroll1.set)
+        self.OTUlist.grid(row=0,column=0)
+        self.Scroll1.grid(row=0,column=1,sticky='ns')
+        self.Scroll1.config(command=self.OTUlist.yview)
+        rButton = Button(parent,text="-->",command=self.pushRight)
+        rButton.grid(row=1,column=0,sticky='we')
+        sButton = Button(parent,text="Show tree",command=self.showTree)
+        sButton.grid(row=2,column=0,sticky='we')
+        
+        self.Scroll2=Scrollbar(parent,bg="blue")
+        self.Tlist = Listbox(parent,height=12,width=20,selectmode=MULTIPLE,yscrollcommand=self.Scroll2.set)
+        self.Tlist.grid(row=0,column=2)
+        self.Scroll2.grid(row=0,column=3,sticky='ns')
+        self.Scroll2.config(command=self.Tlist.yview)
+        
+        lButton = Button(parent,text="<--",command=self.pushLeft)
+        lButton.grid(row=1,column=2,sticky='ew')
+        
+        cButton = Button(parent,text="Create clade",command=self.makeClade)
+        cButton.grid(row=2,column=2,sticky='we')
+        
+        myL1=Label(parent,text="Current tree in Newick fromat:",fg="blue")
+        myL1.grid(row=3,column=0,columnspan=4)
+        
+        self.tx = Text(parent,font=('times',12),height=8,width=50,wrap=WORD,fg="yellow",bg="blue")
+        self.tx.grid(row=4,column=0,columnspan=3)
+        self.tx.insert(END,"tree string in Newick format")
+        
+        self.treeImage=Canvas(parent,bg="black",height=400,width=360)
+        self.treeImage.grid(row=0,column=5,rowspan=5,sticky='ns')
+        self.stPhoto=PhotoImage(file='./tree0.gif')
+        self.treeImage.create_image(180,160,image=self.stPhoto)
+
+        """
+        self.qbutton = Button(self.myContainer1,command=self.qbuttonClick)
+        self.qbutton.configure(text="Quit",fg="red")
+        self.qbutton.pack(side=RIGHT,fill=Y)
+        """
+        self.al=[]
+        self.curTree = "" ###empty list where all selected items will go
+
+        self.myParent.config(menu=self.menuBar)
+
+
+    def qbuttonClick(self):
+        self.myParent.destroy()
+        
+    def makeTree(self):
+        e=self.OTUlist.size()
+        self.curTree='('+self.OTUlist.get(0)
+        for i in range(1,e):
+            self.curTree =self.curTree+','+self.OTUlist.get(i)
+        self.curTree =self.curTree+');'
+        return
+    
+    def makeClade(self):
+        e=self.Tlist.size()
+        if e>1 :
+            self.clade='('+self.Tlist.get(0)
+            for i in range(1,e):
+                self.clade=self.clade+','+self.Tlist.get(i)
+            self.clade=self.clade+')'
+            self.OTUlist.insert(0,self.clade)
+            self.Tlist.delete(0,END)
+            self.makeTree()
+            self.tx.delete(1.0,END)
+            self.tx.insert(END,self.curTree)
+        return
+            
+
+    def LoadPHYLIP(self):
+        fn=tkFileDialog.Open(self.myParent,filetypes = [('*.phy files', '.phy')]).show()
+        if fn == '':
+            return
+        self.al = AlignIO.read(fn,"phylip")
+        for q in self.al:
+            self.OTUlist.insert(END,q.id)
+        self.makeTree()
+        self.tx.delete(1.0,END)
+        self.tx.insert(END,self.curTree)
+        return
+
+    def LoadFASTA(self):
+        fn=tkFileDialog.Open(self.myParent,filetypes = [('*.fas files', '.fas')]).show()
+        if fn == '':
+            return
+        self.al = AlignIO.read(fn,"fasta")
+        for q in self.al:
+            self.OTUlist.insert(END,q.id)
+        self.makeTree()
+        self.tx.delete(1.0,END)
+        self.tx.insert(END,self.curTree)
+        
+        return
+
+    def LoadCLUSTAL(self):
+        fn=tkFileDialog.Open(self.myParent,filetypes = [('*.aln files', '.aln')]).show()
+        if fn == '':
+            return
+        self.al = AlignIO.read(fn,"clustal")
+        for q in self.al:
+            self.OTUlist.insert(END,q.id)
+        self.makeTree()
+        self.tx.delete(1.0,END)
+        self.tx.insert(END,self.curTree)
+        
+        return
+
+    def LoadNEXUS(self):
+        fn=tkFileDialog.Open(self.myParent,filetypes = [('*.nex files', '.nex')]).show()
+        if fn == '':
+            return
+        self.al = AlignIO.read(fn,"nexus")
+        for q in self.al:
+            self.OTUlist.insert(END,q.id)
+        self.makeTree()
+        self.tx.delete(1.0,END)
+        self.tx.insert(END,self.curTree)
+        
+        return
+
+    def pushRight(self):
+        for qq in reversed(self.OTUlist.curselection()):
+            self.Tlist.insert(0,self.OTUlist.get(qq))
+            self.OTUlist.delete(qq)
+        return
+
+    def pushLeft(self):
+        for qq in reversed(self.Tlist.curselection()):
+            self.OTUlist.insert(0,self.Tlist.get(qq))
+            self.Tlist.delete(qq)
+        return
+    
+    def writeNewickTree(self):
+        fn=tkFileDialog.asksaveasfilename()
+        if fn == '':
+            return
+        fh=open(fn,'w')
+        fh.write(self.curTree)
+        fh.close()
+        return
+    
+    def showTree(self):
+        t=Tree(self.curTree)
+        ts = TreeStyle()
+        ts.show_leaf_name = True
+        ts.mode = "c"
+        ts.arc_start = -180 # 0 degrees = 3 o'clock
+        ts.arc_span = 180
+        t.render('arbre.png',w=360,h=300,units='px',tree_style=ts)
+        os.system("convert arbre.png arbre.gif")
+        self.stPhoto=PhotoImage(file='arbre.gif')
+        self.treeImage.create_image(180,160,image=self.stPhoto)
+        return;
+
+def main():
+    root = Tk()
+    myapp=UOApp(root)
+    root.mainloop()
+
+if __name__=='__main__':
+    main()
